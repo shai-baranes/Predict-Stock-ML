@@ -11,8 +11,24 @@ from tabulate import tabulate
 
 sp500 = yf.Ticker("^GSPC")
 sp500 = sp500.history(period="max")
+
 VIX = yf.Ticker("^VIX")
 VIX = VIX.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
+
+SPY = yf.Ticker("SPY")
+SPY = SPY.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
+
+VOO = yf.Ticker("VOO")
+VOO = VOO.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
+
+IVV = yf.Ticker("IVV")
+IVV = IVV.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
+
+
+
+futures = yf.Ticker("ES=F")
+futures = futures.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
+
 
 
 inflation = pd.read_csv("./CSV_Inputs/Inflation.csv", index_col=0)
@@ -51,8 +67,20 @@ def format_date_index(index):
 shortened_vix_date = [format_date_index(str(item)) for item in VIX.index]
 VIX.index = pd.to_datetime(shortened_vix_date)
 
+shortened_spy_date = [format_date_index(str(item)) for item in SPY.index]
+SPY.index = pd.to_datetime(shortened_spy_date)
+
+shortened_voo_date = [format_date_index(str(item)) for item in VOO.index]
+VOO.index = pd.to_datetime(shortened_voo_date)
+
+shortened_ivv_date = [format_date_index(str(item)) for item in IVV.index]
+IVV.index = pd.to_datetime(shortened_ivv_date)
+
 shortened_sp500_date = [format_date_index(str(item)) for item in sp500.index]
 sp500.index = pd.to_datetime(shortened_sp500_date)
+
+shortened_futures_date = [format_date_index(str(item)) for item in futures.index]
+futures.index = pd.to_datetime(shortened_futures_date)
 
 sp500['_Index_'] = shortened_sp500_date
 
@@ -63,7 +91,11 @@ sp500 = sp500.iloc[:, [7, 0, 1, 2, 3, 4, 5, 6]]  # 'Sr.no', 'Maths Score', 'Name
 
 # test it
 sp500 = pd.concat([sp500, VIX["Close"].to_frame('VIX_Close')], axis=1)
-# sp500 = pd.concat([VIX["Close"].to_frame('VIX_Close'), sp500], axis=1)
+sp500 = pd.concat([sp500, SPY["Close"].to_frame('SPY_Close')], axis=1)
+sp500 = pd.concat([sp500, VOO["Close"].to_frame('VOO_Close')], axis=1)
+sp500 = pd.concat([sp500, IVV["Close"].to_frame('IVV_Close')], axis=1)
+
+sp500 = pd.concat([sp500, futures["Close"].to_frame('Futures_Close')], axis=1) # TBD need to check that we have enough rows
 
 
 
@@ -89,10 +121,8 @@ with open(r"temp_sp500_tabular_view.txt", "w") as f:
 sp500.drop(['_Index_'], axis=1, inplace=True) # the rolling function cannot work on these dates (was needed only for a nices tabular view)
 
 
-def backtest(data, model, predictors, start=2500, step=250):
-# def backtest(data, model, predictors, start=1000, step=250):
-    import pdb; pdb.set_trace()  # breakpoint 5cfd0628 //
-
+def backtest(data, model, predictors, start=1000, step=250):
+# def backtest(data, model, predictors, start=2500, step=250):
     all_predictions = []
 
     for i in range(start, data.shape[0], step):
@@ -106,7 +136,9 @@ def backtest(data, model, predictors, start=2500, step=250):
 
 horizons = [2,5,60,250,1000]
 
-new_predictors = ["Volume", "VIX_Close"]
+new_predictors = ["Volume"]
+# new_predictors = ["Volume", "VIX_Close"]
+# new_predictors = ["Volume", "VIX_Close", "Futures_Close"]
 # new_predictors = ["Volume", "VIX_Close", "Inflation"]
 # new_predictors = ["VIX_Close"]
 
@@ -116,11 +148,26 @@ for horizon in horizons:
     ratio_close_column = f"Close_Ratio_{horizon}"
     sp500[ratio_close_column] = sp500["Close"] / rolling_average["Close"]
 
+    ratio_future_close_column = f"Future_Close_Ratio_{horizon}"
+    sp500[ratio_future_close_column] = sp500["Futures_Close"] / rolling_average["Futures_Close"]
+
     ratio_interest_column = f"interest_Ratio_{horizon}"
     sp500[ratio_interest_column] = sp500["Interest_Rate"] / rolling_average["Interest_Rate"]
 
     ratio_inflation_column = f"inflation_Ratio_{horizon}"
     sp500[ratio_inflation_column] = sp500["Inflation"] / rolling_average["Inflation"]
+
+    ratio_spy_column = f"SPY_Close_Ratio_{horizon}"
+    sp500[ratio_spy_column] = sp500["SPY_Close"] / rolling_average["SPY_Close"]
+
+    ratio_voo_column = f"VOO_Close_Ratio_{horizon}"
+    sp500[ratio_voo_column] = sp500["VOO_Close"] / rolling_average["VOO_Close"]
+
+    ratio_ivv_column = f"IVV_Close_Ratio_{horizon}"
+    sp500[ratio_ivv_column] = sp500["IVV_Close"] / rolling_average["IVV_Close"]
+
+    ratio_vix_column = f"VIX_Close_Ratio_{horizon}"
+    sp500[ratio_vix_column] = sp500["VIX_Close"] / rolling_average["VIX_Close"]
 
     # ratio_yield_column = f"yield_Ratio_{horizon}"
     # sp500[ratio_yield_column] = sp500["Market_Yield"] / rolling_average["Market_Yield"]
@@ -128,7 +175,7 @@ for horizon in horizons:
     trend_column = f"Trend_{horizon}"
     sp500[trend_column] = sp500.shift(1).rolling(horizon).sum()["Target"]
 
-    new_predictors += [ratio_close_column, trend_column, ratio_interest_column, ratio_inflation_column]
+    new_predictors += [ratio_close_column, trend_column, ratio_interest_column, ratio_inflation_column, ratio_voo_column, ratio_spy_column, ratio_future_close_column, ratio_ivv_column, ratio_vix_column]
     # new_predictors += [ratio_close_column, trend_column, ratio_interest_column, ratio_inflation_column, ratio_yield_column]
     # new_predictors += [ratio_close_column, trend_column]
 
@@ -139,7 +186,9 @@ sp500.dropna(inplace=True)
 
 
 
-model = RandomForestClassifier(n_estimators=200, min_samples_split=50, random_state=1) 
+model = RandomForestClassifier(n_estimators=200, min_samples_split=50, random_state=1)
+# model = RandomForestClassifier(n_estimators=200, min_samples_split=50, random_state=1) #0.65
+# model = RandomForestClassifier(n_estimators=100, min_samples_split=50, random_state=1) #0.64
 
 
 def predict(train, test, predictors, model):
