@@ -18,8 +18,8 @@ VIX = VIX.history(period="max") # TBD get the list comprehension that removed th
 SPY = yf.Ticker("SPY")
 SPY = SPY.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
 
-VOO = yf.Ticker("VOO")
-VOO = VOO.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
+# VOO = yf.Ticker("VOO") # not enough data (by dropping Null we remain we too few...)
+# VOO = VOO.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
 
 IVV = yf.Ticker("IVV")
 IVV = IVV.history(period="max") # TBD get the list comprehension that removed the hrs-min-sec 00:00:00 from the format
@@ -34,20 +34,20 @@ futures = futures.history(period="max") # TBD get the list comprehension that re
 inflation = pd.read_csv("./CSV_Inputs/Inflation.csv", index_col=0)
 # inflation = pd.read_csv("./CSV_Inputs/Inflation.csv", index_col="observation_date")
 interest = pd.read_csv("./CSV_Inputs/Interest_Rate.csv", index_col=0)
-market_yield = pd.read_csv("./CSV_Inputs/Market_Yield.csv", index_col=0)
+# market_yield = pd.read_csv("./CSV_Inputs/Market_Yield.csv", index_col=0)
 
 
 
 
 inflation.index = pd.to_datetime(inflation.index)
 interest.index = pd.to_datetime(interest.index)
-market_yield.index = pd.to_datetime(market_yield.index)
+# market_yield.index = pd.to_datetime(market_yield.index)
 
 
 
 inflation.index.name = None
 interest.index.name = None
-market_yield.index.name = None
+# market_yield.index.name = None
 
 
 # remove extra columns
@@ -70,8 +70,8 @@ VIX.index = pd.to_datetime(shortened_vix_date)
 shortened_spy_date = [format_date_index(str(item)) for item in SPY.index]
 SPY.index = pd.to_datetime(shortened_spy_date)
 
-shortened_voo_date = [format_date_index(str(item)) for item in VOO.index]
-VOO.index = pd.to_datetime(shortened_voo_date)
+# shortened_voo_date = [format_date_index(str(item)) for item in VOO.index]
+# VOO.index = pd.to_datetime(shortened_voo_date)
 
 shortened_ivv_date = [format_date_index(str(item)) for item in IVV.index]
 IVV.index = pd.to_datetime(shortened_ivv_date)
@@ -92,7 +92,7 @@ sp500 = sp500.iloc[:, [7, 0, 1, 2, 3, 4, 5, 6]]  # 'Sr.no', 'Maths Score', 'Name
 # test it
 sp500 = pd.concat([sp500, VIX["Close"].to_frame('VIX_Close')], axis=1)
 sp500 = pd.concat([sp500, SPY["Close"].to_frame('SPY_Close')], axis=1)
-sp500 = pd.concat([sp500, VOO["Close"].to_frame('VOO_Close')], axis=1)
+# sp500 = pd.concat([sp500, VOO["Close"].to_frame('VOO_Close')], axis=1)
 sp500 = pd.concat([sp500, IVV["Close"].to_frame('IVV_Close')], axis=1)
 
 sp500 = pd.concat([sp500, futures["Close"].to_frame('Futures_Close')], axis=1) # TBD need to check that we have enough rows
@@ -103,9 +103,17 @@ sp500 = pd.concat([sp500, inflation["EXPINF10YR"].to_frame('Inflation')], axis=1
 sp500 = pd.concat([sp500, interest["REAINTRATREARAT10Y"].to_frame('Interest_Rate')], axis=1)
 # sp500 = pd.concat([sp500, market_yield["DFII10"].to_frame('Market_Yield')], axis=1)
 
-sp500['Inflation'] = sp500['Inflation'].interpolate(method='linear')
-sp500['Interest_Rate'] = sp500['Interest_Rate'].interpolate(method='linear')
-# sp500['Market_Yield'] = sp500['Market_Yield'].interpolate(method='linear')
+
+
+
+sp500['Inflation'] = sp500['Inflation'].fillna(sp500['Inflation'].ffill())
+# sp500['Inflation'] = sp500['Inflation'].interpolate(method='linear')
+sp500['Interest_Rate'] = sp500['Interest_Rate'].fillna(sp500['Interest_Rate'].ffill())
+# sp500['Interest_Rate'] = sp500['Interest_Rate'].interpolate(method='linear')
+
+# sp500['Market_Yield'] = sp500['Market_Yield'].interpolate(method='linear') # TBD to check - to many nulls
+
+
 
 # remove historical data that will not help for prediction
 sp500 = sp500.loc["1990-01-01":]
@@ -118,11 +126,13 @@ sp500.dropna(subset=['_Index_'], inplace=True) # drop all empty rows where we on
 with open(r"temp_sp500_tabular_view.txt", "w") as f:
     f.write(tabulate(sp500.sort_index(ascending=False), headers='keys', tablefmt='psql', showindex=False))
 
+
+
 sp500.drop(['_Index_'], axis=1, inplace=True) # the rolling function cannot work on these dates (was needed only for a nices tabular view)
 
 
-def backtest(data, model, predictors, start=1000, step=250):
 # def backtest(data, model, predictors, start=2500, step=250):
+def backtest(data, model, predictors, start=1000, step=250): # TBD for VOO
     all_predictions = []
 
     for i in range(start, data.shape[0], step):
@@ -135,8 +145,10 @@ def backtest(data, model, predictors, start=1000, step=250):
 
 
 horizons = [2,5,60,250,1000]
+# horizons = [2,5,60,250]
 
 new_predictors = ["Volume"]
+# new_predictors = ["Volume", "Inflation", "Interest_Rate"]
 # new_predictors = ["Volume", "VIX_Close"]
 # new_predictors = ["Volume", "VIX_Close", "Futures_Close"]
 # new_predictors = ["Volume", "VIX_Close", "Inflation"]
@@ -160,8 +172,8 @@ for horizon in horizons:
     ratio_spy_column = f"SPY_Close_Ratio_{horizon}"
     sp500[ratio_spy_column] = sp500["SPY_Close"] / rolling_average["SPY_Close"]
 
-    ratio_voo_column = f"VOO_Close_Ratio_{horizon}"
-    sp500[ratio_voo_column] = sp500["VOO_Close"] / rolling_average["VOO_Close"]
+    # ratio_voo_column = f"VOO_Close_Ratio_{horizon}"
+    # sp500[ratio_voo_column] = sp500["VOO_Close"] / rolling_average["VOO_Close"]
 
     ratio_ivv_column = f"IVV_Close_Ratio_{horizon}"
     sp500[ratio_ivv_column] = sp500["IVV_Close"] / rolling_average["IVV_Close"]
@@ -175,14 +187,14 @@ for horizon in horizons:
     trend_column = f"Trend_{horizon}"
     sp500[trend_column] = sp500.shift(1).rolling(horizon).sum()["Target"]
 
-    new_predictors += [ratio_close_column, trend_column, ratio_interest_column, ratio_inflation_column, ratio_voo_column, ratio_spy_column, ratio_future_close_column, ratio_ivv_column, ratio_vix_column]
+    new_predictors += [ratio_close_column, trend_column, ratio_spy_column, ratio_future_close_column, ratio_ivv_column, ratio_vix_column, ratio_interest_column, ratio_inflation_column]
+    # new_predictors += [ratio_close_column, trend_column, ratio_interest_column, ratio_inflation_column, ratio_voo_column, ratio_spy_column, ratio_future_close_column, ratio_ivv_column, ratio_vix_column]
     # new_predictors += [ratio_close_column, trend_column, ratio_interest_column, ratio_inflation_column, ratio_yield_column]
     # new_predictors += [ratio_close_column, trend_column]
 
 
-
 # TBD check what happens if I don't remove it?
-sp500.dropna(inplace=True)
+sp500.dropna(inplace=True) # TBD to understand who provide these NANs ???
 
 
 
@@ -194,8 +206,8 @@ model = RandomForestClassifier(n_estimators=200, min_samples_split=50, random_st
 def predict(train, test, predictors, model):
     model.fit(train[predictors], train["Target"])
     preds = model.predict_proba(test[predictors])[:,1]
-    preds[preds >= .6] = 1
-    preds[preds < .6] = 0
+    preds[preds >= .55] = 1
+    preds[preds < .55] = 0
     preds = pd.Series(preds, index=test.index, name="Predictions")
     combined = pd.concat([test["Target"], preds], axis=1)
     return combined
@@ -208,11 +220,59 @@ predictions = backtest(sp500, model, new_predictors)
 with open(r"temp_predictions.txt", "w") as f:
     f.write(tabulate(predictions.sort_index(ascending=False), headers='keys', tablefmt='psql', showindex=True))
 
-import pdb; pdb.set_trace()  # breakpoint cff3d7f2 //
 
-precision_score(predictions["Target"], predictions["Predictions"])
+score_all = precision_score(predictions["Target"], predictions["Predictions"])
 # 0.570771001150748
 
-
-precision_score(predictions[-250:]["Target"], predictions[-250:]["Predictions"]) # somehow only the last period is improved after adding VIX & Volume
+score_250 = precision_score(predictions[-250:]["Target"], predictions[-250:]["Predictions"]) # somehow only the last period is improved after adding VIX & Volume
 # 0.7368421052631579
+
+
+
+print(f"{score_all=:.2f}")# 0.5975609756097561 -> after removing VOO -> 0.5451612903225806
+print(f"{score_250=:.2f}")# 0.5483870967741935 -> after removing VOO -> 0.6785714285714286
+
+# number of investment during the 250 days period:
+investments_per_250_period = predictions[-250:].query('Predictions == 1').shape[0]
+
+# miss oppurtunities are not mentiones here
+failed_investment_250 = predictions[-250:].query('Target == 0 and Predictions == 1').shape[0]/investments_per_250_period          
+
+success_investments_250 = predictions[-250:].query('Target == 1 and Predictions == 1').shape[0]/investments_per_250_period          
+# 0.08571428571428572
+
+
+
+print(f"{investments_per_250_period=}") 
+print(f"{failed_investment_250=:.2f}") 
+print(f"{success_investments_250=:.2f}") 
+
+
+# score_all=0.53
+# score_250=0.68
+# investments_per_250_period=28
+# failed_investment_250=0.32
+# success_investments_250=0.68
+
+
+## after changing from >= .55 into >= .6
+# score_all=0.54
+# score_250=0.66
+# investments_per_250_period=77
+# failed_investment_250=0.34
+# success_investments_250=0.66
+
+
+## after changing from start=1000 into start=2500
+# score_all=0.54
+# score_250=0.65
+# investments_per_250_period=79
+# failed_investment_250=0.35
+# success_investments_250=0.65
+
+# last - current
+# score_all=0.54
+# score_250=0.65
+# investments_per_250_period=81
+# failed_investment_250=0.35
+# success_investments_250=0.65

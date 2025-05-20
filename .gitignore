@@ -10,3 +10,7 @@ wheels/
 .venv
 requirements.txt
 docs/
+temp_*
+ML.sublime-workspace
+Predict Stock ML.sublime-project
+Predict Stock ML.sublime-workspace
