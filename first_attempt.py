@@ -32,7 +32,7 @@ stocks = pd.read_csv('./starter_files/sp_500_stocks.csv')
 
 
 # Acquire API Token
-from starter_files.secrets import POLYGON_CLOUD_API_TOKEN
+from starter_files.secrets import POLYGON_CLOUD_API_TOKEN  # noqa: E402
 # a2C96LuhRFZnI3fzToR_GYzELkG9EHrB
 
 
@@ -76,7 +76,8 @@ from starter_files.secrets import POLYGON_CLOUD_API_TOKEN
 
 
 
-from polygon import RESTClient
+from polygon import RESTClient  # noqa: E402
+# https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file/
 
 
 client = RESTClient(POLYGON_CLOUD_API_TOKEN)  # POLYGON_API_KEY environment variable is used

@@ -215,6 +215,7 @@ failed_investment_250 = predictions[-250:].query('Target == 0 and Predictions ==
 
 success_investments_250 = predictions[-250:].query('Target == 1 and Predictions == 1').shape[0]/investments_per_250_period          
 # 0.08571428571428572
+import pdb; pdb.set_trace()  # breakpoint e3c74f0d //
 
 
 
